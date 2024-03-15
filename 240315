@@ -1,1 +1,202 @@
+#include <Servo.h>
+#include <SoftwareSerial.h>
+#include <Gyro.h>
 
+// 创建一个 Servo 数组来控制每个舵机
+Servo servo[6];
+
+// 创建一个 SoftwareSerial 对象来连接舵机控制器
+SoftwareSerial servoController(10, 11);
+
+// 定义两足机器人的腿关节角度数组
+int legAngles[6] = { 0, 0, 0, 0, 0, 0 };
+
+// 定义两足机器人的姿态参数
+float pitch = 0, roll = 0, yaw = 0;
+
+// 定义两足机器人的期望姿态参数
+float pitchDes = 0, rollDes = 0, yawDes = 0;
+
+// 定义两足机器人的姿态误差
+float pitchError = 0, rollError = 0, yawError = 0;
+
+// 定义两足机器人的姿态控制器参数
+float kpPitch = 0.1, kiPitch = 0.001, kpRoll = 0.1, kiRoll = 0.001, kpYaw = 0.1, kiYaw = 0.001;
+
+// 定义两足机器人的前进函数
+void moveForward() {
+ // 遍历两足机器人的腿关节角度数组，控制每个舵机转动到相应的角度
+ for (int i = 0; i < 6; i++) {
+ servo[i].write(legAngles[i]);
+ }
+ delay(1000);
+}
+
+// 定义两足机器人的后退函数
+void moveBackward() {
+ // 遍历两足机器人的腿关节角度数组，控制每个舵机转动到相应的角度
+ for (int i = 0; i < 6; i++) {
+ servo[i].write(legAngles[i] + 180);
+ }
+ delay(1000);
+}
+
+// 定义两足机器人的左转函数
+void turnLeft() {
+ // 遍历两足机器人的腿关节角度数组，控制每个舵机转动到相应的角度
+ for (int i = 0; i < 3; i++) {
+ servo[i].write(legAngles[i] + 90);
+ servo[i + 3].write(legAngles[i]);
+ }
+ delay(1000);
+}
+
+// 定义两足机器人的右转函数
+void turnRight() {
+ // 遍历两足机器人的腿关节角度数组，控制每个舵机转动到相应的角度
+ for (int i = 0; i < 3; i++) {
+ servo[i].write(legAngles[i]);
+ servo[i + 3].write(legAngles[i] + 90);
+ }
+ delay(1000);
+}
+
+// 定义两足机器人的姿态控制函数
+void attitudeControl() {
+ // 获取两足机器人的姿态信息
+ pitch = pitch + gyro.pitch();
+ roll = roll + gyro.roll();
+ yaw = yaw + gyro.yaw();
+
+ // 计算姿态误差
+ pitchError = pitch - pitchDes;
+ rollError = roll - rollDes;
+ yawError = yaw - yawDes;
+
+ // 姿态控制器
+ pitch = pitch + kpPitch * pitchError + kiPitch * pitchError * dt;
+ roll = roll + kpRoll * rollError + kiRoll * rollError * dt;
+ yaw = yaw + kpYaw * yawError + kiYaw * yawError * dt;
+
+ // 限制姿态角度范围
+ if (pitch > 90) {
+ pitch = 90;
+ } else if (pitch < -90) {
+ pitch = -90;
+ }
+ if (roll > 90) {
+ roll = 90;
+ } else if (roll < -90) {
+ roll = -90;
+ }
+ if (yaw > 360) {
+ yaw -= 360;
+ } else if (yaw < 0) {
+ yaw += 360;
+ }
+
+ // 将姿态角度转换为舵机角度
+ legAngles[0] = map(pitch, -90, 90, 0, 180);
+ legAngles[1] = map(roll, -90, 90, 0, 180);
+ legAngles[2] = map(yaw, 0, 360, 0, 180);
+ legAngles[3] = legAngles[0];
+ legAngles[4] = legAngles[1];
+ legAngles[5] = legAngles[2];
+
+ // 将舵机角度发送到舵机控制器
+ for (int i = 0; i < 6; i++) {
+ write(servoController, legAngles[i]);
+ }
+}
+
+// 定义两足机器人的姿态控制器参数更新函数
+void updateAttitudeParams(float kpPitch, float kiPitch, float kpRoll, float kiRoll, float kpYaw, float kiYaw) {
+ kpPitch = map(kpPitch, 0, 1, 0.001, 1);
+kiPitch = map(kiPitch, 0, 1, 0.00001, 0.001);
+kpRoll = map(kpRoll, 0, 1, 0.001, 1);
+kiRoll = map(kiRoll, 0, 1, 0.00001, 0.001);
+kpYaw = map(kpYaw, 0, 1, 0.001, 1);
+kiYaw = map(kiYaw, 0, 1, 0.00001, 0.001);
+}
+
+// 定义两足机器人的姿态控制器参数
+float kpPitch = 0.1;
+float kiPitch = 0.001;
+float kpRoll = 0.1;
+float kiRoll = 0.001;
+float kpYaw = 0.1;
+float kiYaw = 0.001;
+
+// 定义两足机器人的姿态控制器时间常数
+float dt = 0.01;
+
+// 定义两足机器人的姿态期望参数
+float pitchDes = 0, rollDes = 0, yawDes = 0;
+
+// 定义两足机器人的姿态传感器
+Gyro gyro;
+
+void setup() {
+ // 初始化 Servo 类的对象，设置每个舵机的引脚和角度范围
+ servo[0].attach(9);
+servo[1].attach(10);
+servo[2].attach(11);
+servo[3].attach(12);
+servo[4].attach(13);
+servo[5].attach(14);
+
+ // 设置每个舵机的初始角度
+ servo[0].write(0);
+servo[1].write(45);
+servo[2].write(90);
+servo[3].write(135);
+servo[4].write(0);
+servo[5].write(45);
+
+ // 初始化舵机控制器的串口连接
+ servoController.begin(115200);
+
+ // 初始化姿态传感器
+ gyro.begin();
+}
+
+void loop() {
+ // 更新姿态控制器参数
+ updateAttitudeParams(kpPitch, kiPitch, kpRoll, kiRoll, kpYaw, kiYaw);
+
+ // 读取姿态传感器数据
+ pitch = gyro.pitch();
+ roll = gyro.roll();
+ yaw = gyro.yaw();
+
+ // 计算期望姿态参数
+ pitchDes = map(pitch, -90, 90, -45, 45);
+ rollDes = 0;
+ yawDes = map(yaw, 0, 360, 0, 180);
+
+ // 控制两足机器人的动作
+ if (abs(pitch) > 10) {
+ if (pitch > 0) {
+ moveForward();
+ } else {
+ moveBackward();
+ }
+ }
+ if (abs(roll) > 10) {
+ if (roll > 0) {
+ turnLeft();
+ } else {
+ turnRight();
+ }
+ }
+ if (abs(yaw) > 10) {
+ if (yaw > 0) {
+ moveBackward();
+ } else {
+ moveForward();
+ }
+ }
+
+ // 姿态控制
+ attitudeControl();
+}
